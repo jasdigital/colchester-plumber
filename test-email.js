@@ -1,6 +1,8 @@
 // Simple test for the email API
 // Run with: node test-email.js
 
+const fetch = require('node-fetch');
+
 const testEmailAPI = async () => {
   try {
     const response = await fetch('http://localhost:3000/api/send-email', {
@@ -30,8 +32,8 @@ const testEmailAPI = async () => {
 };
 
 // Only run if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   testEmailAPI();
 }
 
-export { testEmailAPI };
+module.exports = { testEmailAPI };

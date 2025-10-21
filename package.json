@@ -11,7 +11,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "nodemailer": "^7.0.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
