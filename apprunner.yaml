@@ -1,11 +1,13 @@
 version: 1.0
-runtime: docker
+runtime: nodejs22
 build:
   commands:
     build:
-      - echo "Using Dockerfile for build"
+      - yarn install --frozen-lockfile
+      - yarn build
 run:
-  command: nginx -g 'daemon off;'
+  runtime-version: 22.20.0
+  command: npx serve -s dist -l 8080
   network:
     port: 8080
   env:
