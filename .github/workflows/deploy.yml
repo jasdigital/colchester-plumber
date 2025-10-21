@@ -1,0 +1,137 @@
+name: Deploy to AWS App Runner
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  AWS_REGION: us-east-1  # Change to your preferred region
+  ECR_REPOSITORY: colchester-plumber
+  APP_RUNNER_SERVICE: colchester-plumber-service
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+      
+    - name: Build, tag, and push image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build Docker image
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        
+        # Push images to ECR
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        
+    - name: Create or update App Runner service
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Check if service exists
+        SERVICE_EXISTS=$(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='$APP_RUNNER_SERVICE'].ServiceName" --output text)
+        
+        if [ -z "$SERVICE_EXISTS" ]; then
+          echo "Creating new App Runner service..."
+          aws apprunner create-service \
+            --service-name $APP_RUNNER_SERVICE \
+            --source-configuration '{
+              "ImageRepository": {
+                "ImageIdentifier": "'$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG'",
+                "ImageConfiguration": {
+                  "Port": "8080",
+                  "StartCommand": "",
+                  "RuntimeEnvironmentVariables": {}
+                },
+                "ImageRepositoryType": "ECR"
+              },
+              "AutoDeploymentsEnabled": false
+            }' \
+            --instance-configuration '{
+              "Cpu": "0.25 vCPU",
+              "Memory": "0.5 GB"
+            }' \
+            --health-check-configuration '{
+              "Protocol": "HTTP",
+              "Path": "/health",
+              "Interval": 10,
+              "Timeout": 5,
+              "HealthyThreshold": 1,
+              "UnhealthyThreshold": 5
+            }' \
+            --tags Key=Environment,Value=production Key=Project,Value=colchester-plumber
+        else
+          echo "Updating existing App Runner service..."
+          aws apprunner update-service \
+            --service-arn $(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='$APP_RUNNER_SERVICE'].ServiceArn" --output text) \
+            --source-configuration '{
+              "ImageRepository": {
+                "ImageIdentifier": "'$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG'",
+                "ImageConfiguration": {
+                  "Port": "8080",
+                  "StartCommand": "",
+                  "RuntimeEnvironmentVariables": {}
+                },
+                "ImageRepositoryType": "ECR"
+              },
+              "AutoDeploymentsEnabled": false
+            }'
+        fi
+        
+    - name: Wait for deployment
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        echo "Waiting for App Runner service to be ready..."
+        aws apprunner wait service-running \
+          --service-arn $(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='$APP_RUNNER_SERVICE'].ServiceArn" --output text)
+        
+    - name: Get service URL
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        SERVICE_URL=$(aws apprunner describe-service \
+          --service-arn $(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='$APP_RUNNER_SERVICE'].ServiceArn" --output text) \
+          --query 'Service.ServiceUrl' --output text)
+        
+        echo "✅ Deployment successful to AWS App Runner!"
+        echo "🌐 Service URL: https://$SERVICE_URL"
+        echo "SERVICE_URL=https://$SERVICE_URL" >> $GITHUB_ENV
+        
+    - name: Deployment notification
+      if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      run: |
+        echo "🎉 Colchester Plumber website deployed successfully!"
+        echo "📱 Your site is now live at: $SERVICE_URL"
+        echo "🔄 App Runner will automatically handle scaling and health checks"
+        
+    - name: Deployment failure notification
+      if: failure()
+      run: |
+        echo "❌ Deployment failed!"
+        echo "Check the logs above for details"
+        echo "Common issues:"
+        echo "  - AWS credentials not configured"
+        echo "  - ECR repository doesn't exist"
+        echo "  - Docker build failed"
