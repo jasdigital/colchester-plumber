@@ -17,7 +17,7 @@ export function Header({ current }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-white/70 backdrop-blur">
       <Container className="flex h-16 items-center justify-between">
-        <a href="/" className="flex items-center gap-3">
+        <a href="#/" className="flex items-center gap-3">
           <img src={logo} alt="Colchester Plumber Logo" className="h-12 w-12" />
           <div className="text-left">
             <div className="text-sm font-bold leading-tight">{BUSINESS_NAME}</div>
@@ -28,7 +28,7 @@ export function Header({ current }) {
           {links.map((l) => (
             <a
               key={l.to}
-              href={l.to}
+              href={`#${l.to}`}
               className={`text-sm font-medium ${
                 current === l.to ? "text-blue-700" : "text-gray-700 hover:text-blue-700"
               }`}
