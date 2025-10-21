@@ -1,13 +1,11 @@
 version: 1.0
-runtime: nodejs22
 build:
   commands:
     build:
-      - yarn install --frozen-lockfile
-      - yarn build
+      - echo "Build handled by Docker"
 run:
-  runtime-version: 22.20.0
-  command: npx serve -s dist -l 8080
+  runtime: docker
+  command: nginx -g 'daemon off;'
   network:
     port: 8080
   env:
