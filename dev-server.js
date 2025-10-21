@@ -1,25 +1,20 @@
+import express from 'express';
 import nodemailer from 'nodemailer';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
-export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+// Load environment variables
+dotenv.config({ path: '.env.local' });
 
-  // Handle preflight request
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+const app = express();
+const PORT = 3001;
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+// Middleware
+app.use(cors());
+app.use(express.json());
 
+// Email API endpoint
+app.post('/api/send-email', async (req, res) => {
   try {
     const { name, email, phone, postcode, issue } = req.body;
 
@@ -28,20 +23,26 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Configure Nodemailer with SendGrid SMTP
+    // Configure SendGrid SMTP
     const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
     if (!SENDGRID_API_KEY) {
-      console.error('SendGrid API key not configured');
-      return res.status(500).json({ error: 'Email service not configured' });
+      console.log('SendGrid API key not configured - simulating email send');
+      console.log('Form data:', { name, email, phone, postcode, issue });
+      
+      return res.json({ 
+        success: true, 
+        message: 'Development mode: Email simulated successfully',
+        data: { name, email, phone, postcode, issue }
+      });
     }
 
     const transporter = nodemailer.createTransporter({
       host: 'smtp.sendgrid.net',
       port: 587,
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
-        user: 'apikey', // This is literal 'apikey', not a variable
-        pass: SENDGRID_API_KEY, // SendGrid API key
+        user: 'apikey',
+        pass: SENDGRID_API_KEY,
       },
     });
 
@@ -156,19 +157,28 @@ Gas Safe Registered • Fully Insured`
       await transporter.sendMail(autoReply);
     } catch (autoReplyError) {
       console.error('Auto-reply failed:', autoReplyError);
-      // Continue without failing the main request
     }
 
-    return res.status(200).json({ 
+    res.json({ 
       success: true, 
       message: 'Emails sent successfully' 
     });
 
   } catch (error) {
-    console.error('SendGrid error:', error);
-    return res.status(500).json({ 
+    console.error('Email error:', error);
+    res.status(500).json({ 
       error: 'Failed to send email',
       details: error.message 
     });
   }
-}
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Development API server running' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Development API server running on http://localhost:${PORT}`);
+  console.log(`Email endpoint available at http://localhost:${PORT}/api/send-email`);
+});

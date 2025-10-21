@@ -50,34 +50,25 @@ export function ContactForm() {
         return;
       }
 
-      // For local development, simulate the API call
-      if (import.meta.env.DEV) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        console.log('Form submission (LOCAL DEV):', { name, email, phone, postcode, issue });
-        
-        // Simulate success (in production, this will actually send via SendGrid)
-      } else {
-        // Production: Send email via API endpoint
-        const response = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name,
-            email,
-            phone,
-            postcode,
-            issue
-          })
-        });
+      // Send email via API endpoint
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+          postcode,
+          issue
+        })
+      });
 
-        const result = await response.json();
+      const result = await response.json();
 
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to send email');
-        }
+      if (!response.ok) {
+        throw new Error(result.error || `Server error: ${response.status}`);
       }
 
       setStatus({
@@ -110,11 +101,6 @@ export function ContactForm() {
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Get Your Free Quote</h2>
           <p className="text-gray-600">Fill out the form below and we'll get back to you within 1 hour</p>
-          {import.meta.env.DEV && (
-            <div className="mt-2 px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full inline-block">
-              Local Development - Form data will be logged to console
-            </div>
-          )}
         </div>
 
         {status.message && (
