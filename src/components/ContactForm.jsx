@@ -27,62 +27,77 @@ export function ContactForm() {
     setStatus({ type: '', message: '' });
 
     try {
-      // For development, simulate the API call
-      if (import.meta.env.DEV) {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Log form data for development
-        console.log('Form submission (DEV MODE):', formData);
-        
+      const { name, email, phone, postcode, issue } = formData;
+
+      // Validate required fields
+      if (!name || !email || !phone || !issue) {
         setStatus({
-          type: 'success',
-          message: 'Development Mode: Form data logged to console. In production, this will send via SendGrid to bookings@colchester-plumber.co.uk'
-        });
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          postcode: '',
-          issue: ''
+          type: 'error',
+          message: 'Please fill in all required fields.'
         });
         setIsSubmitting(false);
         return;
       }
 
-      // Production API call
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setStatus({
-          type: 'success',
-          message: 'Thank you! Your message has been sent successfully. We\'ll get back to you within 1 hour during business hours.'
-        });
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          postcode: '',
-          issue: ''
-        });
-      } else {
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
         setStatus({
           type: 'error',
-          message: result.error || 'Failed to send message. Please try again.'
+          message: 'Please enter a valid email address.'
         });
+        setIsSubmitting(false);
+        return;
       }
+
+      // For local development, simulate the API call
+      if (import.meta.env.DEV) {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.log('Form submission (LOCAL DEV):', { name, email, phone, postcode, issue });
+        
+        // Simulate success (in production, this will actually send via SendGrid)
+      } else {
+        // Production: Send email via API endpoint
+        const response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            phone,
+            postcode,
+            issue
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to send email');
+        }
+      }
+
+      setStatus({
+        type: 'success',
+        message: 'Thank you! Your message has been sent successfully. We\'ll get back to you within 1 hour during business hours.'
+      });
+
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        postcode: '',
+        issue: ''
+      });
+
     } catch (error) {
+      console.error('SendGrid error:', error);
       setStatus({
         type: 'error',
-        message: 'Network error. Please check your connection and try again.'
+        message: 'Failed to send message. Please try again or call us directly.'
       });
     } finally {
       setIsSubmitting(false);
@@ -97,7 +112,7 @@ export function ContactForm() {
           <p className="text-gray-600">Fill out the form below and we'll get back to you within 1 hour</p>
           {import.meta.env.DEV && (
             <div className="mt-2 px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full inline-block">
-              Development Mode - Form submissions will be logged to console
+              Local Development - Form data will be logged to console
             </div>
           )}
         </div>
