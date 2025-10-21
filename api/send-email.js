@@ -1,6 +1,6 @@
 // SendGrid Mail API for Vercel deployment
-module.exports = async function handler(req, res) {
-  // Set CORS headers
+export default async function handler(req, res) {
+  // Set CORS headers first
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -11,8 +11,7 @@ module.exports = async function handler(req, res) {
 
   // Handle preflight request
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
@@ -20,7 +19,9 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { name, email, phone, postcode, issue } = req.body;
+    console.log('Email API called with method:', req.method);
+    
+    const { name, email, phone, postcode, issue } = req.body || {};
 
     // Validate required fields
     if (!name || !email || !phone || !issue) {
@@ -120,13 +121,8 @@ Timestamp: ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`
     };
 
     // Send business notification with proper error handling
-    try {
-      await sendGridRequest(businessEmailData);
-      console.log('Business notification email sent successfully');
-    } catch (businessEmailError) {
-      console.error('Failed to send business notification:', businessEmailError);
-      throw new Error('Failed to send business notification email');
-    }
+    await sendGridRequest(businessEmailData);
+    console.log('Business notification email sent successfully');
 
     // Auto-reply to customer (SendGrid format)
     const autoReplyData = {
@@ -218,21 +214,21 @@ Gas Safe Registered • Fully Insured`
     console.error('Email API Error:', error);
     
     // Return appropriate error response based on error type
-    if (error.message.includes('SendGrid API error')) {
+    if (error.message && error.message.includes('SendGrid API error')) {
       return res.status(503).json({ 
         error: 'Email service temporarily unavailable',
         message: 'Please try again in a few moments or contact us directly'
       });
     }
     
-    if (error.message.includes('Missing required fields')) {
+    if (error.message && error.message.includes('Missing required fields')) {
       return res.status(400).json({ 
         error: 'Invalid request data',
         details: error.message 
       });
     }
     
-    if (error.message.includes('Email service not configured')) {
+    if (error.message && error.message.includes('Email service not configured')) {
       return res.status(500).json({ 
         error: 'Server configuration error',
         message: 'Please contact support'
