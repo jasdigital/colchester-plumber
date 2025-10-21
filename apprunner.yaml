@@ -5,7 +5,6 @@ build:
     build:
       - echo "Using Dockerfile for build"
 run:
-  runtime-version: latest
   command: nginx -g 'daemon off;'
   network:
     port: 8080
