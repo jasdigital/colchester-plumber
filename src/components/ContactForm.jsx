@@ -70,6 +70,7 @@ export function ContactForm() {
       if (!response.ok) {
         throw new Error(result.error || `Server error: ${response.status}`);
       }
+      
 
       setStatus({
         type: 'success',

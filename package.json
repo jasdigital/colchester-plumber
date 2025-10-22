@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:api\" \"npm run dev:frontend\"",
-    "dev:api": "node dev-server.js",
-    "dev:frontend": "vite",
+    "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+     "docker": "vite preview --host 0.0.0.0 --port 5173 --no-open",
+    "start": "npm run docker"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.914.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
