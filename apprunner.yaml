@@ -1,17 +1,27 @@
 version: 1.0
-runtime: docker
-build:
-  commands:
-    build:
-      - echo "Building React app with Docker"
-run:
-  runtime-version: latest
-  command: npm start
-  network:
-    port: 5173
-    env: PORT
-  env:
-    - name: NODE_ENV
-      value: production
-    - name: PORT
-      value: "5173"
+services:
+  - name: vite-react-nginx
+    source:
+      code_repository:
+        repository_url: https://github.com/your-org/your-repo
+        source_code_version:
+          type: BRANCH
+          value: main
+        code_configuration:
+          configuration_source: REPOSITORY   # Uses your Dockerfile
+    instance_configuration:
+      cpu: 1 vCPU
+      memory: 2 GB
+      environment_variables:
+        - key: NODE_ENV
+          value: production
+        # Add any VITE_* build-time envs to your CI/build step, not here
+    runtime_configuration:
+      port: 80
+      health_check:
+        path: /
+        interval: 10
+        timeout: 5
+        healthy_threshold: 1
+        unhealthy_threshold: 5
+    auto_scaling_configuration_arn: default
