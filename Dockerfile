@@ -1,5 +1,5 @@
 # Use Node.js LTS with explicit platform to avoid ARM64 issues
-FROM node:18-alpine
+FROM node:22-alpine
  
 # Set the working directory inside the container
 WORKDIR /src
